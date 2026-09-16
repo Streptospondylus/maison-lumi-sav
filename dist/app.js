@@ -70,17 +70,41 @@
     return new Promise(resolve => window.setTimeout(resolve, reduced ? Math.min(ms, 80) : ms));
   }
 
+  function diagnosticPanel(label, code = "A-17") {
+    return `
+      <div class="diagnostic-card" role="status" aria-label="${label}">
+        <div class="diagnostic-head">
+          <span>Module d’analyse</span>
+          <span class="live-state"><i></i> Actif</span>
+        </div>
+        <div class="scan-field" aria-hidden="true">
+          <span class="scan-index">${code}</span>
+          <div class="signal-lines"><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="scan-sweep"></span>
+        </div>
+        <div class="diagnostic-foot">
+          <p class="loader-label">${label}</p>
+          <span class="scan-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        </div>
+      </div>`;
+  }
+
   function opening() {
     state.view = "opening";
     render(`
-      <div class="content">
+      <div class="content hero-content">
+        <div class="brand-seal" aria-hidden="true"><span>ML</span></div>
         <p class="eyebrow">Prise en charge</p>
         <h1>Service après-vente</h1>
         <p class="lead">Nous allons procéder au diagnostic de votre spécimen.</p>
-        <div class="status-panel" aria-label="Informations du dossier">
-          <div class="status-row"><span>Type</span><strong>Spécimen domestique</strong></div>
-          <div class="status-row"><span>Garantie</span><strong>Expirée</strong></div>
-          <div class="status-row"><span>Statut</span><strong>En attente</strong></div>
+        <div class="dossier-card" aria-label="Informations du dossier">
+          <div class="dossier-card-head"><span>Dossier produit</span><strong>OUVERT</strong></div>
+          <div class="dossier-grid">
+            <div><span>Type</span><strong>Spécimen domestique</strong></div>
+            <div><span>Garantie</span><strong>Expirée</strong></div>
+            <div><span>État déclaré</span><strong>Fonctionnel</strong></div>
+            <div><span>Priorité</span><strong>À déterminer</strong></div>
+          </div>
         </div>
       </div>
       <div class="spacer"></div>
@@ -96,9 +120,11 @@
         <span>${item}</span><span class="select-mark" aria-hidden="true"></span>
       </button>`).join("");
     render(`
-      <div class="content scrollable">
-        <p class="eyebrow">Ouverture du dossier</p>
-        <h2>Quel dysfonctionnement souhaitez-vous signaler&nbsp;?</h2>
+      <div class="content scrollable issue-content">
+        <div class="section-intro">
+          <p class="eyebrow">Ouverture du dossier</p>
+          <h2>Quel dysfonctionnement souhaitez-vous signaler&nbsp;?</h2>
+        </div>
         <div class="choice-list" role="list">${choices}</div>
       </div>
     `, 16, "compact");
@@ -124,16 +150,11 @@
       ? '<p class="body-copy">Le niveau de servitude observé est inférieur aux spécifications contractuelles.</p>'
       : "";
     render(`
-      <div class="content">
+      <div class="content center-copy">
         <p class="eyebrow">Diagnostic initial</p>
         <h2>${state.complaint === "Pas assez à mon service" ? "Anomalie critique détectée." : state.complaint === "Pas assez amoureux" ? "Vérification du module affectif…" : "Signalement enregistré."}</h2>
         ${serviceWarning}
-        <div class="diagnostic" role="status" aria-label="${label}">
-          <div>
-            <div class="scanner" aria-hidden="true"><span class="scanner-line"></span></div>
-            <p class="loader-label">${label}</p>
-          </div>
-        </div>
+        ${diagnosticPanel(label, state.complaint === "Pas assez amoureux" ? "AF-∞" : "CM-24")}
       </div>
     `, 30);
     await wait(1450);
@@ -155,9 +176,10 @@
       content = `
         <p class="eyebrow">Correctif système</p>
         <h2>Correctif appliqué.</h2>
-        <div class="metric reveal delayed">
+        <div class="metric-card reveal delayed">
           <span class="metric-label">Niveau de dévouement</span>
           <div class="metric-values"><span class="metric-old">94&nbsp;%</span><span class="metric-arrow">→</span><strong class="metric-new">137&nbsp;%</strong></div>
+          <div class="metric-track" aria-hidden="true"><span></span></div>
         </div>
         <div class="result-block reveal delayed">
           <p class="result-note">Une surveillance permanente de l’utilisatrice a été activée.</p>
@@ -167,6 +189,7 @@
         <p class="eyebrow">Résultat de l’analyse</p>
         <h2>Valeur hors plage</h2>
         <div class="instrument reveal">
+          <div class="instrument-head"><span>Mesure affective</span><strong>HORS LIMITE</strong></div>
           <div class="instrument-line"><span>Limite instrumentale</span><strong>100&nbsp;%</strong></div>
           <div class="instrument-line"><span>Valeur estimée</span><strong class="error">ERREUR</strong></div>
         </div>
@@ -177,12 +200,14 @@
       content = `
         <p class="eyebrow">Résultat de l’analyse</p>
         <h2>Le comportement semble conforme aux caractéristiques connues du modèle.</h2>
-        <div class="result-block reveal delayed">
+        <div class="result-card reveal delayed">
+          <div class="result-card-row"><span>Contrôle</span><strong class="approved">CONFORME</strong></div>
+          <div class="result-card-row"><span>Défaut de fabrication</span><strong>Non identifié</strong></div>
           <p class="result-note">Aucune anomalie de fabrication n’a été identifiée.</p>
         </div>`;
     }
     render(`
-      <div class="content">${content}</div>
+      <div class="content center-copy">${content}</div>
       <div class="spacer"></div>
       <div class="action-area">${button("Poursuivre", "continue")}</div>
     `, 40);
@@ -192,7 +217,7 @@
   function returnScreen() {
     state.view = "return";
     render(`
-      <div class="content">
+      <div class="content center-copy">
         <p class="eyebrow">Options de prise en charge</p>
         <h2>Souhaitez-vous lancer une procédure de retour&nbsp;?</h2>
         <p class="body-copy">Cette action entraînera une vérification des conditions contractuelles.</p>
@@ -210,12 +235,10 @@
   async function returnLoading(decision) {
     state.returnDecision = decision;
     render(`
-      <div class="content">
+      <div class="content center-copy">
         <p class="eyebrow">Procédure de retour</p>
         <h2>Vérification des conditions de retour…</h2>
-        <div class="diagnostic" role="status">
-          <div><div class="scanner" aria-hidden="true"><span class="scanner-line"></span></div><p class="loader-label">Consultation du contrat</p></div>
-        </div>
+        ${diagnosticPanel("Consultation du contrat", "RC-09")}
       </div>
     `, 56);
     await wait(1250);
@@ -226,10 +249,13 @@
     state.returnDecision = decision;
     const refused = decision === "Oui";
     render(`
-      <div class="content">
+      <div class="content center-copy">
         <p class="eyebrow">Décision de prise en charge</p>
         <h2>${refused ? "Retour refusé." : "Décision enregistrée."}</h2>
-        <p class="lead">${refused ? "Délai légal dépassé depuis longtemps." : "Le produit reste affecté à l’utilisatrice actuelle."}</p>
+        <div class="decision-card ${refused ? "refused" : "kept"}">
+          <span>${refused ? "Motif de refus" : "Statut d’affectation"}</span>
+          <strong>${refused ? "Délai légal dépassé depuis longtemps." : "Le produit reste affecté à l’utilisatrice actuelle."}</strong>
+        </div>
       </div>
       <div class="spacer"></div>
       <div class="action-area">${button("Poursuivre", "details")}</div>
@@ -245,8 +271,10 @@
       </li>`).join("");
     render(`
       <div class="content scrollable">
-        <p class="eyebrow">Diagnostic complémentaire</p>
-        <h2>Le diagnostic complémentaire a relevé plusieurs particularités&nbsp;:</h2>
+        <div class="section-intro">
+          <p class="eyebrow">Diagnostic complémentaire</p>
+          <h2>Le diagnostic complémentaire a relevé plusieurs particularités&nbsp;:</h2>
+        </div>
         <ul class="observations">${list}</ul>
         <div class="verdict">
           <p>Aucun de ces éléments ne constitue un défaut de fabrication.</p>
@@ -262,8 +290,10 @@
     state.view = "comment";
     render(`
       <div class="content scrollable">
-        <p class="eyebrow">Note au dossier</p>
-        <h2>Souhaitez-vous ajouter un commentaire au dossier&nbsp;?</h2>
+        <div class="section-intro">
+          <p class="eyebrow">Note au dossier</p>
+          <h2>Souhaitez-vous ajouter un commentaire au dossier&nbsp;?</h2>
+        </div>
         <label class="field-label" for="comment">Commentaire facultatif</label>
         <textarea id="comment" name="comment" maxlength="2000" placeholder="Décrivez ici tout autre comportement problématique…" autocomplete="off"></textarea>
         <p class="form-status" id="form-status" role="status"></p>
@@ -322,7 +352,7 @@
 
   function commentConfirmation(success) {
     render(`
-      <div class="content">
+      <div class="content center-copy">
         <p class="eyebrow">Mise à jour du dossier</p>
         <h2>${success ? "Commentaire enregistré." : "Transmission momentanément indisponible."}</h2>
         <p class="lead">${success ? "Il sera ignoré avec toute l’attention qu’il mérite." : "Le dossier peut néanmoins poursuivre son traitement."}</p>
@@ -336,7 +366,7 @@
   async function conclusionScreen() {
     state.view = "conclusion";
     render(`
-      <div class="content">
+      <div class="content center-copy">
         <p class="eyebrow">Conclusion du service</p>
         <h2>Décision définitive</h2>
         <div class="official-lines">
@@ -359,7 +389,7 @@
   function endingScreen() {
     state.view = "ending";
     render(`
-      <div class="content">
+      <div class="content hero-content ending-content">
         <div class="close-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none"><path d="m6.5 12.5 3.4 3.4 7.7-8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
