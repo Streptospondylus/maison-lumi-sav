@@ -24,208 +24,188 @@
   ];
 
   const state = {
-    reference: createReference(),
+    reference: `ML–${new Date().getFullYear().toString().slice(-2)}–${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
     complaint: "",
     returnDecision: "",
-    comment: "",
-    view: "opening"
+    comment: ""
   };
 
   const screen = document.querySelector("#screen");
   const progress = document.querySelector("#progress");
   document.querySelector("#reference").textContent = state.reference;
 
-  function createReference() {
-    const seed = (Date.now().toString(36).slice(-3) + Math.random().toString(36).slice(2, 4)).toUpperCase();
-    return `ML-SAV-${seed}`;
-  }
+  const wait = (ms) => new Promise(resolve => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.setTimeout(resolve, reduced ? Math.min(ms, 80) : ms);
+  });
 
-  function setProgress(value) {
-    progress.style.width = `${value}%`;
-  }
-
-  function render(html, progressValue, className = "") {
-    screen.innerHTML = `<div class="screen ${className}">${html}</div>`;
-    setProgress(progressValue);
+  function render(html, step, extraClass = "") {
+    document.querySelector("#app").classList.toggle("is-ending", extraClass.includes("ending"));
+    screen.innerHTML = `<div class="screen ${extraClass}">${html}</div>`;
+    progress.style.transform = `scaleX(${step / 100})`;
     screen.scrollTop = 0;
     const heading = screen.querySelector("h1, h2");
     if (heading) {
-      heading.setAttribute("tabindex", "-1");
+      heading.tabIndex = -1;
       requestAnimationFrame(() => heading.focus({ preventScroll: true }));
     }
   }
 
-  function button(label, action, type = "primary") {
-    return `<button class="button ${type}" type="button" data-action="${action}">${label}</button>`;
+  function action(label, name, variant = "primary") {
+    return `<button class="action ${variant}" type="button" data-action="${name}"><span>${label}</span><span aria-hidden="true">↗</span></button>`;
   }
 
-  function bind(action, handler) {
-    const element = screen.querySelector(`[data-action="${action}"]`);
-    if (element) element.addEventListener("click", handler);
-    return element;
+  function bind(name, handler) {
+    const node = screen.querySelector(`[data-action="${name}"]`);
+    if (node) node.addEventListener("click", handler);
+    return node;
   }
 
-  function wait(ms) {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    return new Promise(resolve => window.setTimeout(resolve, reduced ? Math.min(ms, 80) : ms));
+  function folio(section, number) {
+    return `<div class="folio"><span>${section}</span><span>${number}</span></div>`;
   }
 
-  function diagnosticPanel(label, code = "A-17") {
+  function analysisSheet(label, code) {
     return `
-      <div class="diagnostic-card" role="status" aria-label="${label}">
-        <div class="diagnostic-head">
-          <span>Module d’analyse</span>
-          <span class="live-state"><i></i> Actif</span>
-        </div>
-        <div class="scan-field" aria-hidden="true">
-          <span class="scan-index">${code}</span>
-          <div class="signal-lines"><i></i><i></i><i></i><i></i><i></i></div>
-          <span class="scan-sweep"></span>
-        </div>
-        <div class="diagnostic-foot">
-          <p class="loader-label">${label}</p>
-          <span class="scan-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-        </div>
+      <div class="analysis-sheet" role="status" aria-label="${label}">
+        <div class="analysis-title"><span>Protocole de contrôle</span><span>${code}</span></div>
+        <div class="analysis-row"><span>Intégrité générale</span><span class="analysis-state">Contrôle</span></div>
+        <div class="analysis-row"><span>Cohérence comportementale</span><span class="analysis-state delay-one">Contrôle</span></div>
+        <div class="analysis-row"><span>Conformité du modèle</span><span class="analysis-state delay-two">Contrôle</span></div>
+        <div class="analysis-progress" aria-hidden="true"><span></span></div>
+        <p class="analysis-caption">${label}</p>
       </div>`;
   }
 
   function opening() {
-    state.view = "opening";
     render(`
-      <div class="content hero-content">
-        <div class="brand-seal" aria-hidden="true"><span>ML</span></div>
-        <p class="eyebrow">Prise en charge</p>
-        <h1>Service après-vente</h1>
-        <p class="lead">Nous allons procéder au diagnostic de votre spécimen.</p>
-        <div class="dossier-card" aria-label="Informations du dossier">
-          <div class="dossier-card-head"><span>Dossier produit</span><strong>OUVERT</strong></div>
-          <div class="dossier-grid">
-            <div><span>Type</span><strong>Spécimen domestique</strong></div>
-            <div><span>Garantie</span><strong>Expirée</strong></div>
-            <div><span>État déclaré</span><strong>Fonctionnel</strong></div>
-            <div><span>Priorité</span><strong>À déterminer</strong></div>
-          </div>
+      ${folio("Service après-vente", "01")}
+      <div class="opening-grid">
+        <div class="opening-title">
+          <p class="kicker">Maison Lumi</p>
+          <h1>Diagnostic<br>du spécimen</h1>
         </div>
+        <p class="intro">Nous allons procéder au diagnostic de votre spécimen.</p>
       </div>
-      <div class="spacer"></div>
-      <div class="action-area">${button("Commencer le diagnostic", "start")}</div>
-    `, 5);
+      <dl class="spec-table">
+        <div><dt>Nature</dt><dd>Spécimen domestique</dd></div>
+        <div><dt>Garantie</dt><dd>Expirée</dd></div>
+        <div><dt>État déclaré</dt><dd>Fonctionnel</dd></div>
+      </dl>
+      <div class="push"></div>
+      <div class="actions">${action("Commencer le diagnostic", "start")}</div>
+    `, 5, "opening");
     bind("start", complaintScreen);
   }
 
   function complaintScreen() {
-    state.view = "complaint";
-    const choices = complaints.map((item, index) => `
-      <button class="choice" type="button" data-complaint="${index}" aria-pressed="false">
-        <span>${item}</span><span class="select-mark" aria-hidden="true"></span>
+    const rows = complaints.map((label, index) => `
+      <button class="complaint-row" type="button" data-complaint="${index}" aria-pressed="false">
+        <span class="row-number">${String(index + 1).padStart(2, "0")}</span>
+        <span>${label}</span>
+        <span class="row-arrow" aria-hidden="true">→</span>
       </button>`).join("");
     render(`
-      <div class="content scrollable issue-content">
-        <div class="section-intro">
-          <p class="eyebrow">Ouverture du dossier</p>
-          <h2>Quel dysfonctionnement souhaitez-vous signaler&nbsp;?</h2>
-        </div>
-        <div class="choice-list" role="list">${choices}</div>
+      ${folio("Nature du signalement", "02")}
+      <div class="editorial-heading">
+        <p class="kicker">Ouverture du dossier</p>
+        <h2>Quel dysfonctionnement souhaitez-vous signaler&nbsp;?</h2>
       </div>
-    `, 16, "compact");
+      <div class="complaint-list">${rows}</div>
+    `, 16, "long-screen");
 
-    screen.querySelectorAll("[data-complaint]").forEach(choice => {
-      choice.addEventListener("click", async () => {
-        state.complaint = complaints[Number(choice.dataset.complaint)];
-        choice.classList.add("selected");
-        choice.setAttribute("aria-pressed", "true");
-        screen.querySelectorAll("[data-complaint]").forEach(node => { node.disabled = true; });
-        await wait(300);
+    screen.querySelectorAll("[data-complaint]").forEach(row => {
+      row.addEventListener("click", async () => {
+        state.complaint = complaints[Number(row.dataset.complaint)];
+        row.classList.add("selected");
+        row.setAttribute("aria-pressed", "true");
+        screen.querySelectorAll("[data-complaint]").forEach(item => { item.disabled = true; });
+        await wait(260);
         diagnosticLoading();
       });
     });
   }
 
   async function diagnosticLoading() {
-    state.view = "diagnostic-loading";
-    let label = "Analyse comportementale en cours";
-    if (state.complaint === "Pas assez à mon service") label = "Étalonnage du niveau de servitude";
-    if (state.complaint === "Pas assez amoureux") label = "Vérification du module affectif";
-    const serviceWarning = state.complaint === "Pas assez à mon service"
-      ? '<p class="body-copy">Le niveau de servitude observé est inférieur aux spécifications contractuelles.</p>'
-      : "";
+    const serviceCase = state.complaint === "Pas assez à mon service";
+    const loveCase = state.complaint === "Pas assez amoureux";
+    const title = serviceCase ? "Anomalie critique détectée." : loveCase ? "Vérification du module affectif…" : "Signalement enregistré.";
+    const caption = serviceCase ? "Étalonnage du niveau de servitude" : loveCase ? "Vérification du module affectif" : "Analyse comportementale en cours";
     render(`
-      <div class="content center-copy">
-        <p class="eyebrow">Diagnostic initial</p>
-        <h2>${state.complaint === "Pas assez à mon service" ? "Anomalie critique détectée." : state.complaint === "Pas assez amoureux" ? "Vérification du module affectif…" : "Signalement enregistré."}</h2>
-        ${serviceWarning}
-        ${diagnosticPanel(label, state.complaint === "Pas assez amoureux" ? "AF-∞" : "CM-24")}
+      ${folio("Contrôle initial", "03")}
+      <div class="editorial-heading narrow">
+        <p class="kicker">Analyse en cours</p>
+        <h2>${title}</h2>
+        ${serviceCase ? '<p class="secondary-copy">Le niveau de servitude observé est inférieur aux spécifications contractuelles.</p>' : ""}
       </div>
+      ${analysisSheet(caption, loveCase ? "AFFECT / ∞" : "COMP / 24")}
     `, 30);
-    await wait(1450);
 
-    if (state.complaint === "Pas assez amoureux") {
-      const labelNode = screen.querySelector(".loader-label");
-      labelNode.textContent = "Analyse impossible";
-      await wait(620);
-      labelNode.textContent = "Nouvelle tentative…";
-      await wait(850);
+    await wait(1400);
+    if (loveCase) {
+      const captionNode = screen.querySelector(".analysis-caption");
+      captionNode.textContent = "Analyse impossible";
+      await wait(600);
+      captionNode.textContent = "Nouvelle tentative…";
+      await wait(800);
     }
     diagnosticResult();
   }
 
   function diagnosticResult() {
-    state.view = "diagnostic-result";
-    let content;
+    let result;
     if (state.complaint === "Pas assez à mon service") {
-      content = `
-        <p class="eyebrow">Correctif système</p>
-        <h2>Correctif appliqué.</h2>
-        <div class="metric-card reveal delayed">
-          <span class="metric-label">Niveau de dévouement</span>
-          <div class="metric-values"><span class="metric-old">94&nbsp;%</span><span class="metric-arrow">→</span><strong class="metric-new">137&nbsp;%</strong></div>
-          <div class="metric-track" aria-hidden="true"><span></span></div>
+      result = `
+        <div class="editorial-heading narrow">
+          <p class="kicker">Correctif système</p>
+          <h2>Correctif appliqué.</h2>
         </div>
-        <div class="result-block reveal delayed">
-          <p class="result-note">Une surveillance permanente de l’utilisatrice a été activée.</p>
-        </div>`;
+        <div class="measurement">
+          <span>Niveau de dévouement</span>
+          <div><del>94&nbsp;%</del><span>→</span><strong>137&nbsp;%</strong></div>
+        </div>
+        <p class="conclusion-note">Une surveillance permanente de l’utilisatrice a été activée.</p>`;
     } else if (state.complaint === "Pas assez amoureux") {
-      content = `
-        <p class="eyebrow">Résultat de l’analyse</p>
-        <h2>Valeur hors plage</h2>
-        <div class="instrument reveal">
-          <div class="instrument-head"><span>Mesure affective</span><strong>HORS LIMITE</strong></div>
-          <div class="instrument-line"><span>Limite instrumentale</span><strong>100&nbsp;%</strong></div>
-          <div class="instrument-line"><span>Valeur estimée</span><strong class="error">ERREUR</strong></div>
+      result = `
+        <div class="editorial-heading narrow">
+          <p class="kicker">Résultat de l’analyse</p>
+          <h2>Valeur hors plage</h2>
         </div>
-        <div class="result-block reveal delayed">
-          <p class="result-note">Le niveau mesuré dépasse la capacité maximale de l’outil de diagnostic.</p>
-        </div>`;
+        <dl class="result-ledger">
+          <div><dt>Limite instrumentale</dt><dd>100&nbsp;%</dd></div>
+          <div><dt>Valeur estimée</dt><dd class="error">ERREUR</dd></div>
+        </dl>
+        <p class="conclusion-note">Le niveau mesuré dépasse la capacité maximale de l’outil de diagnostic.</p>`;
     } else {
-      content = `
-        <p class="eyebrow">Résultat de l’analyse</p>
-        <h2>Le comportement semble conforme aux caractéristiques connues du modèle.</h2>
-        <div class="result-card reveal delayed">
-          <div class="result-card-row"><span>Contrôle</span><strong class="approved">CONFORME</strong></div>
-          <div class="result-card-row"><span>Défaut de fabrication</span><strong>Non identifié</strong></div>
-          <p class="result-note">Aucune anomalie de fabrication n’a été identifiée.</p>
-        </div>`;
+      result = `
+        <div class="editorial-heading">
+          <p class="kicker">Résultat de l’analyse</p>
+          <h2>Le comportement semble conforme aux caractéristiques connues du modèle.</h2>
+        </div>
+        <div class="verdict-line"><span>Défaut de fabrication</span><strong>Aucun</strong></div>
+        <p class="conclusion-note">Aucune anomalie de fabrication n’a été identifiée.</p>`;
     }
     render(`
-      <div class="content center-copy">${content}</div>
-      <div class="spacer"></div>
-      <div class="action-area">${button("Poursuivre", "continue")}</div>
+      ${folio("Résultat du contrôle", "04")}
+      ${result}
+      <div class="push"></div>
+      <div class="actions">${action("Poursuivre", "continue")}</div>
     `, 40);
     bind("continue", returnScreen);
   }
 
   function returnScreen() {
-    state.view = "return";
     render(`
-      <div class="content center-copy">
-        <p class="eyebrow">Options de prise en charge</p>
+      ${folio("Modalités de prise en charge", "05")}
+      <div class="editorial-heading">
+        <p class="kicker">Procédure de retour</p>
         <h2>Souhaitez-vous lancer une procédure de retour&nbsp;?</h2>
-        <p class="body-copy">Cette action entraînera une vérification des conditions contractuelles.</p>
+        <p class="secondary-copy">Les conditions contractuelles seront vérifiées avant toute décision.</p>
       </div>
-      <div class="spacer"></div>
-      <div class="action-area">
-        ${button("Oui", "return-yes")}
-        ${button("Je vais quand même le garder", "return-keep", "secondary")}
+      <div class="push"></div>
+      <div class="actions split">
+        ${action("Oui", "return-yes")}
+        ${action("Je vais quand même le garder", "return-keep", "secondary")}
       </div>
     `, 51);
     bind("return-yes", () => returnLoading("Oui"));
@@ -235,13 +215,14 @@
   async function returnLoading(decision) {
     state.returnDecision = decision;
     render(`
-      <div class="content center-copy">
-        <p class="eyebrow">Procédure de retour</p>
+      ${folio("Étude du dossier", "05 bis")}
+      <div class="editorial-heading narrow">
+        <p class="kicker">Procédure de retour</p>
         <h2>Vérification des conditions de retour…</h2>
-        ${diagnosticPanel("Consultation du contrat", "RC-09")}
       </div>
+      ${analysisSheet("Consultation du contrat", "RETOUR / 09")}
     `, 56);
-    await wait(1250);
+    await wait(1200);
     returnDecision(decision);
   }
 
@@ -249,156 +230,142 @@
     state.returnDecision = decision;
     const refused = decision === "Oui";
     render(`
-      <div class="content center-copy">
-        <p class="eyebrow">Décision de prise en charge</p>
+      ${folio("Décision de prise en charge", "06")}
+      <div class="editorial-heading narrow">
+        <p class="kicker">Avis définitif</p>
         <h2>${refused ? "Retour refusé." : "Décision enregistrée."}</h2>
-        <div class="decision-card ${refused ? "refused" : "kept"}">
-          <span>${refused ? "Motif de refus" : "Statut d’affectation"}</span>
-          <strong>${refused ? "Délai légal dépassé depuis longtemps." : "Le produit reste affecté à l’utilisatrice actuelle."}</strong>
-        </div>
       </div>
-      <div class="spacer"></div>
-      <div class="action-area">${button("Poursuivre", "details")}</div>
+      <div class="decision-rule">
+        <span>${refused ? "Motif" : "Affectation"}</span>
+        <strong>${refused ? "Délai légal dépassé depuis longtemps." : "Le produit reste affecté à l’utilisatrice actuelle."}</strong>
+      </div>
+      <div class="push"></div>
+      <div class="actions">${action("Poursuivre", "details")}</div>
     `, 60);
     bind("details", detailScreen);
   }
 
   function detailScreen() {
-    state.view = "details";
-    const list = observations.map((item, index) => `
-      <li class="observation" style="animation-delay:${Math.min(index * 85, 595)}ms">
-        <span class="check" aria-hidden="true"></span><span>${item}</span>
-      </li>`).join("");
+    const items = observations.map((text, index) => `
+      <li><span>${String(index + 1).padStart(2, "0")}</span><p>${text}</p></li>`).join("");
     render(`
-      <div class="content scrollable">
-        <div class="section-intro">
-          <p class="eyebrow">Diagnostic complémentaire</p>
-          <h2>Le diagnostic complémentaire a relevé plusieurs particularités&nbsp;:</h2>
-        </div>
-        <ul class="observations">${list}</ul>
-        <div class="verdict">
-          <p>Aucun de ces éléments ne constitue un défaut de fabrication.</p>
-          <p>Ils correspondent aux spécifications connues du modèle.</p>
-        </div>
-        <div class="action-area">${button("Continuer", "comment")}</div>
+      ${folio("Examen complémentaire", "07")}
+      <div class="editorial-heading">
+        <p class="kicker">Relevé des particularités</p>
+        <h2>Le diagnostic complémentaire a relevé plusieurs particularités&nbsp;:</h2>
       </div>
-    `, 72, "compact");
+      <ol class="findings">${items}</ol>
+      <div class="final-opinion">
+        <p>Aucun de ces éléments ne constitue un défaut de fabrication.</p>
+        <p>Ils correspondent aux spécifications connues du modèle.</p>
+      </div>
+      <div class="actions">${action("Continuer", "comment")}</div>
+    `, 72, "long-screen");
     bind("comment", commentScreen);
   }
 
   function commentScreen() {
-    state.view = "comment";
     render(`
-      <div class="content scrollable">
-        <div class="section-intro">
-          <p class="eyebrow">Note au dossier</p>
-          <h2>Souhaitez-vous ajouter un commentaire au dossier&nbsp;?</h2>
-        </div>
-        <label class="field-label" for="comment">Commentaire facultatif</label>
-        <textarea id="comment" name="comment" maxlength="2000" placeholder="Décrivez ici tout autre comportement problématique…" autocomplete="off"></textarea>
-        <p class="form-status" id="form-status" role="status"></p>
-        <div class="action-area">
-          ${button("Ajouter au dossier", "submit-comment")}
-          ${button("Continuer sans commentaire", "skip-comment", "text")}
-        </div>
+      ${folio("Observation de l’utilisatrice", "08")}
+      <div class="editorial-heading">
+        <p class="kicker">Note au dossier</p>
+        <h2>Souhaitez-vous ajouter un commentaire au dossier&nbsp;?</h2>
       </div>
-    `, 82, "compact");
+      <label class="field-label" for="comment">Commentaire facultatif</label>
+      <textarea id="comment" maxlength="2000" placeholder="Décrivez ici tout autre comportement problématique…" autocomplete="off"></textarea>
+      <p class="form-status" id="form-status" role="status"></p>
+      <div class="actions">
+        ${action("Ajouter au dossier", "submit-comment")}
+        ${action("Continuer sans commentaire", "skip-comment", "text")}
+      </div>
+    `, 82, "long-screen");
     bind("submit-comment", submitComment);
-    bind("skip-comment", () => { state.comment = ""; conclusionScreen(); });
+    bind("skip-comment", conclusionScreen);
   }
 
   async function submitComment() {
     const textarea = screen.querySelector("#comment");
     const status = screen.querySelector("#form-status");
     const submit = screen.querySelector('[data-action="submit-comment"]');
-    const comment = textarea.value.trim();
-    state.comment = comment;
-
-    if (!comment) {
-      status.textContent = "Aucun commentaire ajouté. Vous pouvez poursuivre sans commentaire.";
+    state.comment = textarea.value.trim();
+    if (!state.comment) {
+      status.textContent = "Aucun commentaire saisi.";
       textarea.focus();
       return;
     }
-
     submit.disabled = true;
-    submit.textContent = "Enregistrement…";
-    const timestamp = new Intl.DateTimeFormat("fr-FR", {
-      dateStyle: "full", timeStyle: "medium"
-    }).format(new Date());
-
-    const payload = {
-      _subject: "Maison Lumi — Nouveau signalement SAV",
-      _template: "table",
-      _captcha: "false",
-      "Motif sélectionné": state.complaint,
-      "Décision concernant le retour": state.returnDecision,
-      "Commentaire": comment,
-      "Date / heure": timestamp,
-      "Dossier": state.reference
-    };
-
+    submit.querySelector("span").textContent = "Enregistrement…";
+    const timestamp = new Intl.DateTimeFormat("fr-FR", { dateStyle: "full", timeStyle: "medium" }).format(new Date());
     try {
       const response = await fetch(EMAIL_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          _subject: "Maison Lumi — Nouveau signalement SAV",
+          _template: "table",
+          _captcha: "false",
+          "Motif sélectionné": state.complaint,
+          "Décision concernant le retour": state.returnDecision,
+          "Commentaire": state.comment,
+          "Date / heure": timestamp,
+          "Dossier": state.reference
+        })
       });
-      if (!response.ok) throw new Error("Relay unavailable");
+      if (!response.ok) throw new Error("Transmission indisponible");
       commentConfirmation(true);
-    } catch (error) {
+    } catch {
       commentConfirmation(false);
     }
   }
 
   function commentConfirmation(success) {
     render(`
-      <div class="content center-copy">
-        <p class="eyebrow">Mise à jour du dossier</p>
+      ${folio("Mise à jour du dossier", "08 bis")}
+      <div class="editorial-heading narrow">
+        <p class="kicker">Compte rendu</p>
         <h2>${success ? "Commentaire enregistré." : "Transmission momentanément indisponible."}</h2>
-        <p class="lead">${success ? "Il sera ignoré avec toute l’attention qu’il mérite." : "Le dossier peut néanmoins poursuivre son traitement."}</p>
+        <p class="secondary-copy">${success ? "Il sera ignoré avec toute l’attention qu’il mérite." : "Le dossier peut néanmoins poursuivre son traitement."}</p>
       </div>
-      <div class="spacer"></div>
-      <div class="action-area">${button("Poursuivre", "conclusion")}</div>
+      <div class="push"></div>
+      <div class="actions">${action("Poursuivre", "conclusion")}</div>
     `, 87);
     bind("conclusion", conclusionScreen);
   }
 
   async function conclusionScreen() {
-    state.view = "conclusion";
     render(`
-      <div class="content center-copy">
-        <p class="eyebrow">Conclusion du service</p>
+      ${folio("Conclusion du service", "09")}
+      <div class="editorial-heading narrow">
+        <p class="kicker">Avis Maison Lumi</p>
         <h2>Décision définitive</h2>
-        <div class="official-lines">
-          <p class="official-line" style="animation-delay:120ms">Aucun remplacement n’est disponible.</p>
-          <p class="official-line" style="animation-delay:520ms">Aucune réparation n’est recommandée.</p>
-          <p class="official-line" style="animation-delay:920ms">Le produit fonctionne malheureusement comme prévu.</p>
-        </div>
       </div>
-      <div class="spacer"></div>
-      <div class="action-area">${button("Clôturer le dossier", "close")}</div>
+      <div class="official-conclusion">
+        <p style="--delay:100ms">Aucun remplacement n’est disponible.</p>
+        <p style="--delay:420ms">Aucune réparation n’est recommandée.</p>
+        <p style="--delay:740ms">Le produit fonctionne malheureusement comme prévu.</p>
+      </div>
+      <div class="push"></div>
+      <div class="actions">${action("Clôturer le dossier", "close")}</div>
     `, 94);
     const close = bind("close", endingScreen);
-    close.style.opacity = "0";
     close.disabled = true;
-    await wait(1400);
-    close.style.opacity = "1";
+    close.style.opacity = "0";
+    await wait(1150);
     close.disabled = false;
+    close.style.opacity = "1";
   }
 
   function endingScreen() {
-    state.view = "ending";
     render(`
-      <div class="content hero-content ending-content">
-        <div class="close-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none"><path d="m6.5 12.5 3.4 3.4 7.7-8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <p class="eyebrow">Dossier ${state.reference}</p>
-        <h1>Dossier clôturé.</h1>
-        <p class="ending-line">Vous allez devoir le garder.</p>
-        <p class="ending-final">Il en est plutôt content.</p>
+      ${folio("Maison Lumi", "Fin")}
+      <div class="ending-copy">
+        <p class="kicker">Dossier ${state.reference}</p>
+        <h1>Dossier<br>clôturé.</h1>
+        <div class="ending-rule"></div>
+        <p>Vous allez devoir le garder.</p>
+        <p class="last-line">Il en est plutôt content.</p>
       </div>
-    `, 100, "centered closing");
+    `, 100, "ending");
   }
 
   opening();
